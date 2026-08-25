@@ -1,0 +1,5 @@
+.build/
+.DS_Store
+Scratch.app/
+Terminote.app/
+dist/
