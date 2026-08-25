@@ -22,9 +22,10 @@ let symbol = NSImage(
     accessibilityDescription: "Terminote"
 )!.withSymbolConfiguration(symbolConfiguration)!
 let symbolSize = symbol.size
+let opticalYOffset: CGFloat = 34
 let symbolRect = NSRect(
     x: (size.width - symbolSize.width) / 2,
-    y: (size.height - symbolSize.height) / 2,
+    y: (size.height - symbolSize.height) / 2 + opticalYOffset,
     width: symbolSize.width,
     height: symbolSize.height
 )
