@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="Resources/TerminoteIcon.png" width="160" alt="Terminote icon">
-</p>
-
 # Terminote
 
 Terminote is a single persistent macOS menu-bar scratchpad. The note autosaves locally with revision history and no save command.
