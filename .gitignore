@@ -2,4 +2,5 @@
 .DS_Store
 Scratch.app/
 Terminote.app/
-dist/
+dist/*
+!dist/Terminote-1.1.0.dmg

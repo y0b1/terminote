@@ -2,6 +2,17 @@
 
 Terminote is a single persistent macOS menu-bar scratchpad. The note autosaves locally with revision history and no save command.
 
+## Download
+
+Download the ready-to-install [Terminote DMG](./dist/Terminote-1.1.0.dmg), open it, and drag Terminote into Applications. No source build or Xcode installation is required. The current build is ad-hoc signed rather than notarized, so on first launch macOS may require you to Control-click Terminote in Applications and choose Open.
+
+## Using Terminote
+
+- Type `-` followed by Space at the start of a line to create a bullet. Return continues the list; Backspace immediately after `• ` returns the line to normal text.
+- Command-Z and Control-Z undo. Add Shift to redo.
+- Right-click or Control-click the menu-bar icon to show line numbers, change the shortcut, or open Theme settings.
+- Theme changes are applied only when you press Save. Choose background and outline colors with the native macOS color panel, adjust background opacity, or enable Liquid Glass on macOS 26 and newer.
+
 ## Requirements
 
 - macOS 14 or newer
@@ -44,7 +55,7 @@ Build a compressed disk image containing `Terminote.app` and an Applications sho
 make dmg
 ```
 
-The result is `dist/Terminote-1.0.0.dmg`.
+The result is `dist/Terminote-1.1.0.dmg`.
 
 ## Homebrew
 
@@ -58,7 +69,7 @@ brew install --cask ./dist/terminote.rb
 For a public tap, upload the DMG to an immutable release URL, then generate the cask with that base URL and your project homepage:
 
 ```sh
-TERMINOTE_RELEASE_BASE_URL="https://github.com/y0b1/terminote/releases/download/v1.0.0" \
+TERMINOTE_RELEASE_BASE_URL="https://github.com/y0b1/terminote/releases/download/v1.1.0" \
 TERMINOTE_HOMEPAGE="https://github.com/y0b1/terminote" \
 ./scripts/cask.sh
 ```

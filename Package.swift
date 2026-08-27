@@ -16,6 +16,10 @@ let package = Package(
                 .linkedFramework("Carbon"),
                 .linkedFramework("ServiceManagement")
             ]
+        ),
+        .testTarget(
+            name: "TerminoteTests",
+            dependencies: ["Terminote"]
         )
     ]
 )

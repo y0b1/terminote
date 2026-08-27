@@ -3,12 +3,25 @@ import AppKit
 final class LineNumberRulerView: NSRulerView {
     private weak var textView: NSTextView?
     private var observers: [NSObjectProtocol] = []
+    var theme: ThemeConfiguration {
+        didSet { needsDisplay = true }
+    }
+    var showsLineNumbers: Bool {
+        didSet { needsDisplay = true }
+    }
 
-    init(textView: NSTextView, scrollView: NSScrollView) {
+    init(
+        textView: NSTextView,
+        scrollView: NSScrollView,
+        theme: ThemeConfiguration,
+        showsLineNumbers: Bool
+    ) {
         self.textView = textView
+        self.theme = theme
+        self.showsLineNumbers = showsLineNumbers
         super.init(scrollView: scrollView, orientation: .verticalRuler)
         clientView = textView
-        ruleThickness = 40
+        ruleThickness = 24
 
         scrollView.contentView.postsBoundsChangedNotifications = true
         let center = NotificationCenter.default
@@ -37,11 +50,15 @@ final class LineNumberRulerView: NSRulerView {
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return }
 
-        NSColor(theme: Theme.editorBackground).setFill()
-        rect.fill()
+        if !Theme.usesLiquidGlass(theme) {
+            NSColor(theme: Theme.editorBackground(theme)).setFill()
+            rect.fill()
+        }
+
+        guard showsLineNumbers else { return }
 
         let separator = NSRect(x: bounds.maxX - 1, y: rect.minY, width: 1, height: rect.height)
-        NSColor(theme: Theme.border).setFill()
+        NSColor(theme: Theme.border(theme)).setFill()
         separator.fill()
 
         let contents = textView.string as NSString
@@ -51,8 +68,8 @@ final class LineNumberRulerView: NSRulerView {
 
         if contents.length == 0 {
             let emptyLine = NSRect(
-                x: 0,
-                y: textView.textContainerInset.height,
+                x: textView.textContainerOrigin.x,
+                y: textView.textContainerOrigin.y,
                 width: 0,
                 height: Theme.editorFont().pointSize * 1.5
             )
@@ -72,11 +89,14 @@ final class LineNumberRulerView: NSRulerView {
                     layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil).location,
                     layoutManager.numberOfGlyphs - 1
                 )
-                lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+                lineRect = textViewRect(
+                    for: layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil),
+                    in: textView
+                )
             } else {
                 lineRect = NSRect(
-                    x: 0,
-                    y: textView.textContainerInset.height,
+                    x: textView.textContainerOrigin.x,
+                    y: textView.textContainerOrigin.y,
                     width: 0,
                     height: Theme.editorFont().pointSize * 1.5
                 )
@@ -95,24 +115,35 @@ final class LineNumberRulerView: NSRulerView {
         let finalCharacter = contents.character(at: contents.length - 1)
         if (finalCharacter == 10 || finalCharacter == 13),
            layoutManager.extraLineFragmentTextContainer === textContainer {
-            draw(lineNumber: lineNumber, for: layoutManager.extraLineFragmentRect, in: textView)
+            draw(
+                lineNumber: lineNumber,
+                for: textViewRect(for: layoutManager.extraLineFragmentRect, in: textView),
+                in: textView
+            )
         }
     }
 
     private func draw(lineNumber: Int, for lineRect: NSRect, in textView: NSTextView) {
         let value = "\(lineNumber)" as NSString
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: Theme.editorFont(size: 11),
-            .foregroundColor: NSColor(theme: Theme.mutedText)
+            .font: Theme.editorFont(size: 10),
+            .foregroundColor: NSColor(theme: Theme.mutedText(theme))
         ]
         let size = value.size(withAttributes: attributes)
         let converted = convert(lineRect, from: textView)
         value.draw(
             at: NSPoint(
-                x: ruleThickness - size.width - 8,
+                x: ruleThickness - size.width - 3,
                 y: converted.minY + (converted.height - size.height) / 2
             ),
             withAttributes: attributes
         )
+    }
+
+    private func textViewRect(for textContainerRect: NSRect, in textView: NSTextView) -> NSRect {
+        var rect = textContainerRect
+        rect.origin.x += textView.textContainerOrigin.x
+        rect.origin.y += textView.textContainerOrigin.y
+        return rect
     }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ShortcutRecorder: View {
     @ObservedObject var hotKeyManager: HotKeyManager
+    let theme: ThemeConfiguration
     @State private var isRecording = false
     @State private var registrationFailed = false
 
@@ -10,7 +11,7 @@ struct ShortcutRecorder: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Keyboard shortcut")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Theme.primaryText)
+                .foregroundStyle(Theme.primaryText(theme))
 
             Button {
                 registrationFailed = false
@@ -18,13 +19,13 @@ struct ShortcutRecorder: View {
             } label: {
                 Text(isRecording ? "Press a shortcut…" : hotKeyManager.shortcut.displayName)
                     .font(.system(size: 14, weight: .medium, design: .monospaced))
-                    .foregroundStyle(isRecording ? Theme.mutedText : Theme.primaryText)
+                    .foregroundStyle(isRecording ? Theme.mutedText(theme) : Theme.primaryText(theme))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    .background(Theme.panelBackground)
+                    .background(Theme.panelBackground(theme))
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .stroke(isRecording ? Theme.accent : Theme.border, lineWidth: 1)
+                            .stroke(isRecording ? Theme.caret(theme) : Theme.border(theme), lineWidth: 1)
                     )
             }
             .buttonStyle(.plain)
@@ -42,8 +43,8 @@ struct ShortcutRecorder: View {
         }
         .padding(14)
         .frame(width: 230)
-        .background(Theme.elevatedBackground)
-        .preferredColorScheme(.dark)
+        .background(Theme.elevatedBackground(theme))
+        .preferredColorScheme(Theme.preferredColorScheme(theme))
     }
 }
 

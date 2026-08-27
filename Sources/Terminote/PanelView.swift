@@ -14,9 +14,9 @@ struct PanelView: View {
                 idealHeight: PanelController.shared.savedHeight,
                 maxHeight: 900
             )
-            .background(Theme.editorBackground)
-            .background(WindowReader().frame(width: 0, height: 0))
-            .preferredColorScheme(.dark)
+            .background(PanelSurface(theme: settings.theme))
+            .background(WindowReader(theme: settings.theme).frame(width: 0, height: 0))
+            .preferredColorScheme(Theme.preferredColorScheme(settings.theme))
     }
 }
 
@@ -29,8 +29,27 @@ private struct NotePaneView: View {
             text: $note.text,
             initialSelection: note.selection,
             showsLineNumbers: settings.showsLineNumbers,
+            theme: settings.theme,
             onSelectionChange: note.setSelection,
             onClose: PanelController.shared.close
         )
+    }
+}
+
+private struct PanelSurface: View {
+    let theme: ThemeConfiguration
+
+    @ViewBuilder
+    var body: some View {
+        if #available(macOS 26.0, *), theme.usesLiquidGlass {
+            Color.clear
+                .glassEffect(
+                    .regular.tint(theme.backgroundColor),
+                    in: RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                )
+                .opacity(theme.opacity)
+        } else {
+            Theme.panelBackground(theme)
+        }
     }
 }

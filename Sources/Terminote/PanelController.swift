@@ -17,13 +17,14 @@ final class PanelController {
         return value > 0 ? value : defaultSize.height
     }
 
-    func capture(window: NSWindow) {
+    func capture(window: NSWindow, theme: ThemeConfiguration) {
         if self.window !== window {
             removeObservers()
             self.window = window
-            configure(window)
+            configure(window, theme: theme)
             observe(window)
         }
+        applyTheme(theme, to: window)
 
         DispatchQueue.main.async {
             window.makeKey()
@@ -55,7 +56,7 @@ final class PanelController {
         window?.orderOut(nil)
     }
 
-    private func configure(_ window: NSWindow) {
+    private func configure(_ window: NSWindow, theme: ThemeConfiguration) {
         window.styleMask.insert(.resizable)
         window.backgroundColor = .clear
         window.isOpaque = false
@@ -65,10 +66,14 @@ final class PanelController {
         window.contentView?.layer?.cornerCurve = .continuous
         window.contentView?.layer?.masksToBounds = true
         window.contentView?.layer?.borderWidth = 1
-        window.contentView?.layer?.borderColor = NSColor(theme: Theme.border).cgColor
+        window.contentView?.layer?.borderColor = NSColor(theme: Theme.border(theme)).cgColor
         window.contentMinSize = NSSize(width: defaultSize.width, height: 260)
         window.contentMaxSize = NSSize(width: defaultSize.width, height: 900)
         window.setContentSize(NSSize(width: defaultSize.width, height: savedHeight))
+    }
+
+    private func applyTheme(_ theme: ThemeConfiguration, to window: NSWindow) {
+        window.contentView?.layer?.borderColor = NSColor(theme: Theme.border(theme)).cgColor
     }
 
     private func observe(_ window: NSWindow) {
@@ -141,20 +146,22 @@ final class PanelController {
 }
 
 struct WindowReader: NSViewRepresentable {
+    let theme: ThemeConfiguration
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        DispatchQueue.main.async { [weak view] in
+        DispatchQueue.main.async { [weak view, theme] in
             if let window = view?.window {
-                PanelController.shared.capture(window: window)
+                PanelController.shared.capture(window: window, theme: theme)
             }
         }
         return view
     }
 
     func updateNSView(_ view: NSView, context: Context) {
-        DispatchQueue.main.async { [weak view] in
+        DispatchQueue.main.async { [weak view, theme] in
             if let window = view?.window {
-                PanelController.shared.capture(window: window)
+                PanelController.shared.capture(window: window, theme: theme)
             }
         }
     }

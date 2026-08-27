@@ -5,6 +5,7 @@ struct EditorView: NSViewRepresentable {
     @Binding var text: String
     let initialSelection: NSRange
     let showsLineNumbers: Bool
+    let theme: ThemeConfiguration
     let onSelectionChange: (NSRange) -> Void
     let onClose: () -> Void
 
@@ -14,8 +15,10 @@ struct EditorView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
-        scrollView.drawsBackground = true
-        scrollView.backgroundColor = NSColor(theme: Theme.editorBackground)
+        scrollView.drawsBackground = !Theme.usesLiquidGlass(theme)
+        scrollView.backgroundColor = Theme.usesLiquidGlass(theme)
+            ? .clear
+            : NSColor(theme: Theme.editorBackground(theme))
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
@@ -25,6 +28,7 @@ struct EditorView: NSViewRepresentable {
         let textView = TerminoteTextView()
         textView.delegate = context.coordinator
         textView.onClose = onClose
+        textView.theme = theme
         textView.focusRingType = .none
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -33,7 +37,10 @@ struct EditorView: NSViewRepresentable {
         textView.autoresizingMask = [.width]
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
-        textView.textContainerInset = NSSize(width: 14, height: 12)
+        textView.textContainerInset = NSSize(
+            width: showsLineNumbers ? 4 : 14,
+            height: 12
+        )
         textView.textContainer?.lineFragmentPadding = 0
         textView.isRichText = false
         textView.importsGraphics = false
@@ -51,7 +58,12 @@ struct EditorView: NSViewRepresentable {
         textView.applyEditorAttributes()
         textView.setSelectedRange(initialSelection)
         scrollView.documentView = textView
-        scrollView.verticalRulerView = LineNumberRulerView(textView: textView, scrollView: scrollView)
+        scrollView.verticalRulerView = LineNumberRulerView(
+            textView: textView,
+            scrollView: scrollView,
+            theme: theme,
+            showsLineNumbers: showsLineNumbers
+        )
         scrollView.hasVerticalRuler = showsLineNumbers
         scrollView.rulersVisible = showsLineNumbers
 
@@ -67,9 +79,23 @@ struct EditorView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? TerminoteTextView else { return }
+        context.coordinator.parent = self
         textView.onClose = onClose
+        textView.theme = theme
+        textView.textContainerInset = NSSize(
+            width: showsLineNumbers ? 4 : 14,
+            height: 12
+        )
+        scrollView.drawsBackground = !Theme.usesLiquidGlass(theme)
+        scrollView.backgroundColor = Theme.usesLiquidGlass(theme)
+            ? .clear
+            : NSColor(theme: Theme.editorBackground(theme))
         scrollView.hasVerticalRuler = showsLineNumbers
         scrollView.rulersVisible = showsLineNumbers
+        if let ruler = scrollView.verticalRulerView as? LineNumberRulerView {
+            ruler.theme = theme
+            ruler.showsLineNumbers = showsLineNumbers
+        }
         scrollView.verticalRulerView?.needsDisplay = true
         if textView.string != text {
             let oldSelection = textView.selectedRange()
@@ -103,13 +129,44 @@ struct EditorView: NSViewRepresentable {
 
 final class TerminoteTextView: NSTextView {
     var onClose: (() -> Void)?
+    var theme: ThemeConfiguration = .default {
+        didSet {
+            guard theme != oldValue else { return }
+            applyEditorAttributes()
+            needsDisplay = true
+        }
+    }
 
     override func keyDown(with event: NSEvent) {
+        if handleUndoShortcut(event) {
+            return
+        }
+
         if event.keyCode == 53 {
             onClose?()
             return
         }
-        if event.keyCode == 48 && event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
+
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers.isEmpty,
+           event.keyCode == 49,
+           let edit = BulletEditing.autoformatDash(in: string, selection: selectedRange()) {
+            perform(edit)
+            return
+        }
+        if modifiers.isEmpty,
+           (event.keyCode == 36 || event.keyCode == 76),
+           let edit = BulletEditing.continueList(in: string, selection: selectedRange()) {
+            perform(edit)
+            return
+        }
+        if modifiers.isEmpty,
+           event.keyCode == 51,
+           let edit = BulletEditing.removeMarkerOnBackspace(in: string, selection: selectedRange()) {
+            perform(edit)
+            return
+        }
+        if event.keyCode == 48 && modifiers.isEmpty {
             insertText("  ", replacementRange: selectedRange())
             return
         }
@@ -117,9 +174,10 @@ final class TerminoteTextView: NSTextView {
     }
 
     override func drawBackground(in rect: NSRect) {
-        NSColor(theme: Theme.editorBackground).setFill()
-        rect.fill()
-        drawCurrentLineHighlight(in: rect)
+        if !Theme.usesLiquidGlass(theme) {
+            NSColor(theme: Theme.editorBackground(theme)).setFill()
+            rect.fill()
+        }
         super.drawBackground(in: rect)
     }
 
@@ -132,43 +190,37 @@ final class TerminoteTextView: NSTextView {
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor(theme: Theme.primaryText),
+            .foregroundColor: NSColor(theme: Theme.primaryText(theme)),
             .paragraphStyle: paragraph
         ]
         typingAttributes = attributes
         defaultParagraphStyle = paragraph
-        textColor = NSColor(theme: Theme.primaryText)
-        insertionPointColor = NSColor(theme: Theme.caret)
+        textColor = NSColor(theme: Theme.primaryText(theme))
+        insertionPointColor = NSColor(theme: Theme.caret(theme))
         selectedTextAttributes = [
-            .backgroundColor: NSColor(theme: Theme.selectionBackground),
-            .foregroundColor: NSColor(theme: Theme.primaryText)
+            .backgroundColor: NSColor(theme: Theme.selectionBackground(theme)),
+            .foregroundColor: NSColor(theme: Theme.primaryText(theme))
         ]
         drawsBackground = false
         textStorage?.setAttributes(attributes, range: NSRange(location: 0, length: textStorage?.length ?? 0))
     }
 
-    private func drawCurrentLineHighlight(in dirtyRect: NSRect) {
-        guard selectedRange().length == 0,
-              let layoutManager,
-              let textContainer else { return }
+    private func perform(_ edit: BulletEditing.Edit) {
+        breakUndoCoalescing()
+        insertText(edit.replacement, replacementRange: edit.range)
+        breakUndoCoalescing()
+    }
 
-        let contents = string as NSString
-        let lineRange = contents.lineRange(for: NSRange(location: min(selectedRange().location, contents.length), length: 0))
-        var lineRect: NSRect
-        if lineRange.location == contents.length, layoutManager.extraLineFragmentTextContainer === textContainer {
-            lineRect = layoutManager.extraLineFragmentRect
-        } else if layoutManager.numberOfGlyphs > 0 {
-            let glyph = min(layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil).location,
-                            layoutManager.numberOfGlyphs - 1)
-            lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+    private func handleUndoShortcut(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard event.charactersIgnoringModifiers?.lowercased() == "z",
+              modifiers.contains(.command) || modifiers.contains(.control) else { return false }
+
+        if modifiers.contains(.shift) {
+            undoManager?.redo()
         } else {
-            lineRect = NSRect(x: 0, y: textContainerInset.height, width: bounds.width, height: Theme.editorFont().pointSize * 1.5)
+            undoManager?.undo()
         }
-
-        lineRect.origin.x = 0
-        lineRect.size.width = bounds.width
-        guard lineRect.intersects(dirtyRect) else { return }
-        NSColor(theme: Theme.currentLineHighlight).setFill()
-        lineRect.fill()
+        return true
     }
 }
